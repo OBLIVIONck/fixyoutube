@@ -19,6 +19,42 @@ Also works with:
 - Playlists (`/playlist?list=...`)
 - `youtu.be/...` links (paste into `/oembed` or rewrite host)
 
+## Deploy
+
+### Option A: VPS (current)
+
+The service runs as a Docker container behind Caddy on the c00lkiddtech VPS.
+
+```bash
+docker compose up -d --build
+```
+
+Point DNS at the VPS:
+
+| Type | Host | Value |
+|------|------|-------|
+| A | `@` | `15.204.116.29` |
+| A | `www` | `15.204.116.29` |
+
+`fixyoutube.com` is currently on Namecheap nameservers (`dns1.registrar-servers.com`). Update the A records in Namecheap, then HTTPS is issued automatically via Caddy on-demand TLS.
+
+### Option B: Cloudflare Workers
+
+Your current `CLOUDFLARE_API_TOKEN` can edit DNS on existing zones but cannot deploy Workers yet. Create a new token with **Workers Scripts Edit** and **Zone** permissions, then:
+
+```bash
+export CLOUDFLARE_API_TOKEN=...
+export CLOUDFLARE_ACCOUNT_ID=64428e69298176aba96969d47209fbde
+npm run deploy:cf
+```
+
+Add `fixyoutube.com` to Cloudflare (or transfer nameservers from Namecheap), uncomment the `[[routes]]` blocks in `wrangler.toml`, and redeploy.
+
+GitHub Actions deploys automatically when you add repo secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID` (optional, defaults in `wrangler.toml`)
+
 ## Development
 
 ```bash
