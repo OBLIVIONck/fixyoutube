@@ -1,0 +1,16 @@
+name = "fixyoutube"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+INNERTUBE_CLIENT_VERSION = "2.20250317.01.00"
+
+# Route fixyoutube.com once DNS is pointed at Cloudflare:
+# [[routes]]
+# pattern = "fixyoutube.com/*"
+# zone_name = "fixyoutube.com"
+#
+# [[routes]]
+# pattern = "www.fixyoutube.com/*"
+# zone_name = "fixyoutube.com"

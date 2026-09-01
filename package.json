@@ -1,0 +1,31 @@
+{
+  "name": "fixyoutube",
+  "version": "0.1.0",
+  "description": "Rich YouTube embeds for Discord, Telegram, and more - videos, Shorts, community posts, and polls",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "youtube",
+    "embed",
+    "discord",
+    "oembed",
+    "cloudflare-workers"
+  ],
+  "author": "OBLIVIONck",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^4.11.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260228.0",
+    "@types/node": "^25.3.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "wrangler": "^4.69.0"
+  }
+}
