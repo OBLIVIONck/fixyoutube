@@ -1,4 +1,5 @@
 import type { YouTubeEmbed } from "../types";
+import { buildEmbedDescription, buildStatsLine } from "../format/stats";
 
 function escapeHtml(value: string): string {
   return value
@@ -25,7 +26,8 @@ function formatDuration(seconds?: number): string | undefined {
 
 export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string {
   const title = embed.title || "YouTube";
-  const description = embed.description?.slice(0, 500) || "";
+  const description = buildEmbedDescription(embed, 500);
+  const statsLine = buildStatsLine(embed);
   const image = embed.thumbnail || embed.images?.[0];
   const video = embed.videoUrl;
   const canonical = embed.canonicalUrl;
@@ -81,9 +83,10 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
   <div class="card">
     <h1>${escapeHtml(title)}</h1>
     ${embed.author ? `<p class="meta">by ${escapeHtml(embed.author)}</p>` : ""}
+    ${statsLine ? `<p class="meta">${escapeHtml(statsLine)}</p>` : ""}
     ${video ? `<video src="${escapeHtml(video)}" controls poster="${escapeHtml(image || "")}"></video>` : ""}
     ${!video && image ? `<img src="${escapeHtml(image)}" alt="">` : ""}
-    <p>${escapeHtml(description)}</p>
+    <p>${escapeHtml(embed.description?.slice(0, 500) || "")}</p>
     ${
       embed.poll?.choices.length
         ? `<div class="poll"><strong>Poll</strong><ul>${embed.poll.choices
@@ -164,7 +167,12 @@ export function embedToOEmbed(embed: YouTubeEmbed, requestUrl: string) {
     width,
     height,
     duration: formatDuration(embed.durationSeconds),
-    description: embed.description,
+    description: buildEmbedDescription(embed, 1000),
+    fixyoutube_stats: buildStatsLine(embed) || null,
+    fixyoutube_views: embed.viewCount || null,
+    fixyoutube_likes: embed.likes || null,
+    fixyoutube_comments: embed.comments || null,
+    fixyoutube_published_at: embed.publishedAt || null,
     fixyoutube_kind: embed.kind,
     fixyoutube_poll: embed.poll || null,
     fixyoutube_url: requestUrl,

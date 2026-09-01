@@ -9,11 +9,10 @@ workers_dev = true
 [vars]
 INNERTUBE_CLIENT_VERSION = "2.20250317.01.00"
 
-# After fixyoutube.com is added to Cloudflare, uncomment:
-# [[routes]]
-# pattern = "fixyoutube.com/*"
-# zone_name = "fixyoutube.com"
-#
-# [[routes]]
-# pattern = "www.fixyoutube.com/*"
-# zone_name = "fixyoutube.com"
+[[routes]]
+pattern = "fixyoutube.com/*"
+zone_name = "fixyoutube.com"
+
+[[routes]]
+pattern = "www.fixyoutube.com/*"
+zone_name = "fixyoutube.com"

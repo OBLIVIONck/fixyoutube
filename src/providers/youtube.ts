@@ -9,6 +9,7 @@ import {
   innertube,
   pickLargestThumbnail,
 } from "./innertube";
+import { parsePostPublishedTime, parseVideoEngagementFromNext, type VideoEngagement } from "./engagement";
 
 interface PlayerResponse {
   videoDetails?: {
@@ -137,6 +138,7 @@ function parseCommunityPostFromInitialData(data: unknown, postId: string): Parti
   const comments = (
     (commentCount?.buttonRenderer as Record<string, unknown>)?.text as { simpleText?: string }
   )?.simpleText;
+  const publishedAt = parsePostPublishedTime(renderer);
 
   let description = contentText;
   if (poll?.choices.length) {
@@ -159,6 +161,7 @@ function parseCommunityPostFromInitialData(data: unknown, postId: string): Parti
     poll,
     likes: voteCount,
     comments,
+    publishedAt,
     canonicalUrl: `https://www.youtube.com/post/${postId}`,
   };
 }
@@ -168,8 +171,14 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
   const canonicalUrl = toYouTubeUrl(parsed);
 
   let player: PlayerResponse;
+  let engagement: VideoEngagement = {};
   try {
-    player = await innertube<PlayerResponse>(env, "player", { videoId });
+    const [playerRes, nextRes] = await Promise.all([
+      innertube<PlayerResponse>(env, "player", { videoId }),
+      innertube(env, "next", { videoId }),
+    ]);
+    player = playerRes;
+    engagement = parseVideoEngagementFromNext(nextRes);
   } catch {
     const html = await fetchYouTubePage(parsed.canonicalPath);
     return {
@@ -185,6 +194,8 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
   const details = player.videoDetails;
   const stream = bestProgressiveVideo(player.streamingData);
   const thumb = pickLargestThumbnail(details?.thumbnail?.thumbnails);
+  const publishDate =
+    player.microformat?.playerMicroformatRenderer?.publishDate || engagement.publishedAt;
 
   return {
     kind: parsed.kind === "short" ? "short" : "video",
@@ -200,8 +211,10 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
     videoWidth: stream?.width || 1280,
     videoHeight: stream?.height || 720,
     durationSeconds: details?.lengthSeconds ? Number(details.lengthSeconds) : undefined,
-    viewCount: details?.viewCount,
-    publishedAt: player.microformat?.playerMicroformatRenderer?.publishDate,
+    viewCount: engagement.viewCount || details?.viewCount,
+    publishedAt: publishDate,
+    likes: engagement.likes,
+    comments: engagement.comments,
   };
 }
 
@@ -229,6 +242,7 @@ async function fetchPostEmbed(parsed: ParsedYouTubeUrl): Promise<YouTubeEmbed> {
     poll: fromData?.poll,
     likes: fromData?.likes,
     comments: fromData?.comments,
+    publishedAt: fromData?.publishedAt,
   };
 }
 
