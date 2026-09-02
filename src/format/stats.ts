@@ -83,3 +83,22 @@ export function buildEmbedDescription(embed: YouTubeEmbed, maxBody = 500): strin
   if (stats) return stats;
   return clippedBody;
 }
+
+/** Short single-line blurb for iMessage / Twitter / Facebook cards. */
+export function buildPreviewBlurb(embed: YouTubeEmbed, maxLen = 200): string {
+  const parts: string[] = [];
+  if (embed.author) parts.push(embed.author);
+  const stats = buildStatsLine(embed);
+  if (stats) parts.push(stats);
+
+  const body = (embed.description || "").replace(/\s+/g, " ").trim();
+  if (body) {
+    const room = maxLen - parts.join(" · ").length - 3;
+    if (room > 24) {
+      parts.push(body.length > room ? `${body.slice(0, room - 1)}…` : body);
+    }
+  }
+
+  const line = parts.filter(Boolean).join(" · ");
+  return line.length > maxLen ? `${line.slice(0, maxLen - 1)}…` : line;
+}

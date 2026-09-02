@@ -1,5 +1,6 @@
 import type { YouTubeEmbed } from "../types";
-import { buildEmbedDescription, buildStatsLine } from "../format/stats";
+import { buildEmbedDescription, buildPreviewBlurb, buildStatsLine } from "../format/stats";
+import { normalizePreviewImage } from "../providers/innertube";
 
 function escapeHtml(value: string): string {
   return value
@@ -32,18 +33,27 @@ function absoluteHttpsUrl(url?: string): string | undefined {
   return trimmed;
 }
 
+function previewImage(embed: YouTubeEmbed): string | undefined {
+  const videoId = embed.canonicalUrl.match(/[\?&]v=([\w-]{11})/)?.[1]
+    || embed.canonicalUrl.match(/\/shorts\/([\w-]{11})/)?.[1];
+  const raw = embed.thumbnail || embed.images?.[0];
+  return normalizePreviewImage(absoluteHttpsUrl(raw), videoId);
+}
+
 export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string {
   const title = embed.title || "YouTube";
   const description = buildEmbedDescription(embed, 500);
+  const previewText = buildPreviewBlurb(embed);
   const statsLine = buildStatsLine(embed);
-  const image = absoluteHttpsUrl(embed.thumbnail || embed.images?.[0]);
+  const image = previewImage(embed);
   const video = embed.videoUrl ? absoluteHttpsUrl(embed.videoUrl) : undefined;
   const canonical = embed.canonicalUrl;
   const fixUrl = canonical.replace("https://www.youtube.com", siteOrigin);
+  const siteName = embed.author || "YouTube";
 
   const extraImages = (embed.images || [])
     .slice(1, 4)
-    .map((url) => meta("og:image", absoluteHttpsUrl(url), true))
+    .map((url) => meta("og:image", normalizePreviewImage(absoluteHttpsUrl(url)), true))
     .filter(Boolean)
     .join("\n    ");
 
@@ -60,14 +70,15 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
   <meta charset="utf-8">
   <title>${escapeHtml(title)}</title>
   <link rel="canonical" href="${escapeHtml(canonical)}">
-  ${meta("description", description)}
-  ${meta("og:site_name", "FixYouTube")}
+  ${meta("description", previewText || description)}
+  ${meta("og:site_name", siteName, true)}
   ${meta("og:title", title, true)}
-  ${meta("og:description", description, true)}
+  ${meta("og:description", previewText || description, true)}
   ${meta("og:url", fixUrl, true)}
   ${meta("og:type", video ? "video.other" : "article", true)}
   ${meta("og:image", image, true)}
   ${image ? meta("og:image:secure_url", image, true) : ""}
+  ${image ? meta("og:image:type", "image/jpeg", true) : ""}
   ${image ? meta("og:image:width", "1280", true) : ""}
   ${image ? meta("og:image:height", "720", true) : ""}
   ${extraImages}
@@ -80,7 +91,7 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
   ${embed.publishedAt ? meta("article:published_time", embed.publishedAt, true) : ""}
   ${meta("twitter:card", twitterCard)}
   ${meta("twitter:title", title)}
-  ${meta("twitter:description", description)}
+  ${meta("twitter:description", previewText || description)}
   ${meta("twitter:image", image)}
   ${image ? meta("twitter:image:src", image) : ""}
   ${video ? meta("twitter:player", video) : ""}

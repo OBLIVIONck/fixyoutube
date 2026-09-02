@@ -8,6 +8,7 @@ import {
   extractYtInitialData,
   fetchYouTubePage,
   innertube,
+  normalizePreviewImage,
   pickLargestThumbnail,
 } from "./innertube";
 import {
@@ -285,7 +286,7 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
     authorUrl: details?.channelId
       ? `https://www.youtube.com/channel/${details.channelId}`
       : undefined,
-    thumbnail: thumb || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+    thumbnail: normalizePreviewImage(thumb, videoId) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
     videoUrl: stream?.url,
     videoWidth: stream?.width || 1280,
     videoHeight: stream?.height || 720,

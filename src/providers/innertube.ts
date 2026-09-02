@@ -130,5 +130,34 @@ export function pickLargestThumbnail(thumbnails?: { url?: string; width?: number
   const sorted = [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
   const url = sorted[0]?.url;
   if (!url) return undefined;
-  return url.startsWith("//") ? `https:${url}` : url;
+  const absolute = url.startsWith("//") ? `https:${url}` : url;
+  return normalizePreviewImage(absolute);
+}
+
+/** iMessage and some crawlers reject WebP preview images. */
+export function normalizePreviewImage(url?: string, videoId?: string): string | undefined {
+  if (!url?.trim()) {
+    return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined;
+  }
+
+  let normalized = url.trim();
+  if (normalized.startsWith("//")) normalized = `https:${normalized}`;
+
+  const id =
+    videoId ||
+    normalized.match(/\/vi(?:_webp)?\/([\w-]{11})\//)?.[1] ||
+    normalized.match(/\/vi\/([\w-]{11})\//)?.[1];
+
+  if (normalized.includes("ytimg.com")) {
+    if (normalized.includes("vi_webp/") || normalized.endsWith(".webp")) {
+      if (id) return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    }
+    if (id && !/\.(jpe?g|png)($|\?)/i.test(normalized)) {
+      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    }
+  }
+
+  return normalized
+    .replace(/vi_webp\//g, "vi/")
+    .replace(/\.webp($|\?)/i, ".jpg$1");
 }
