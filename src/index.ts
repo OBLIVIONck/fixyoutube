@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "./types";
-import { isEmbedBot, wantsJson } from "./bots";
+import { isEmbedBot, wantsJson, wantsLinkPreview } from "./bots";
 import { parseYouTubeInput, parseYouTubePath, toYouTubeUrl } from "./parsers/url";
 import { resolveYouTubeEmbed } from "./providers/youtube";
 import { embedToOEmbed, renderEmbedPage, renderLandingPage } from "./embed/html";
@@ -50,7 +50,7 @@ app.get("/*", async (c) => {
   const ua = c.req.header("User-Agent");
   const youtubeUrl = toYouTubeUrl(parsed);
 
-  if (!isEmbedBot(ua) && !wantsJson(c.req.header("Accept"))) {
+  if (!wantsLinkPreview(ua, c.req.header("Accept"))) {
     return c.redirect(youtubeUrl, 302);
   }
 

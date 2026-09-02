@@ -4,6 +4,8 @@ Better YouTube embeds for Discord, Telegram, Slack, and other platforms - inspir
 
 Replace `youtube.com` with `fixyoutube.com` in any link. Bots get rich previews with video, stats, images, and polls. Humans are redirected to YouTube.
 
+Works with Discord, Telegram, Slack, **iMessage**, and other apps that read Open Graph tags.
+
 **Live site:** [fixyoutube.com](https://fixyoutube.com)
 
 ## Usage

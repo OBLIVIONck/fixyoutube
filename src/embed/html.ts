@@ -24,23 +24,35 @@ function formatDuration(seconds?: number): string | undefined {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function absoluteHttpsUrl(url?: string): string | undefined {
+  if (!url?.trim()) return undefined;
+  const trimmed = url.trim();
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("http://")) return `https://${trimmed.slice("http://".length)}`;
+  return trimmed;
+}
+
 export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string {
   const title = embed.title || "YouTube";
   const description = buildEmbedDescription(embed, 500);
   const statsLine = buildStatsLine(embed);
-  const image = embed.thumbnail || embed.images?.[0];
-  const video = embed.videoUrl;
+  const image = absoluteHttpsUrl(embed.thumbnail || embed.images?.[0]);
+  const video = embed.videoUrl ? absoluteHttpsUrl(embed.videoUrl) : undefined;
   const canonical = embed.canonicalUrl;
   const fixUrl = canonical.replace("https://www.youtube.com", siteOrigin);
 
   const extraImages = (embed.images || [])
     .slice(1, 4)
-    .map((url) => meta("og:image", url, true))
+    .map((url) => meta("og:image", absoluteHttpsUrl(url), true))
+    .filter(Boolean)
     .join("\n    ");
 
   const pollNote = embed.poll?.choices.length
     ? `\n    ${meta("fixyoutube:poll", "true")}`
     : "";
+
+  // iMessage / Facebook / Twitter read summary_large_image + og:image (not player cards).
+  const twitterCard = image ? "summary_large_image" : "summary";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -55,6 +67,9 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
   ${meta("og:url", fixUrl, true)}
   ${meta("og:type", video ? "video.other" : "article", true)}
   ${meta("og:image", image, true)}
+  ${image ? meta("og:image:secure_url", image, true) : ""}
+  ${image ? meta("og:image:width", "1280", true) : ""}
+  ${image ? meta("og:image:height", "720", true) : ""}
   ${extraImages}
   ${video ? meta("og:video", video, true) : ""}
   ${video ? meta("og:video:url", video, true) : ""}
@@ -62,10 +77,12 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
   ${video ? meta("og:video:type", "video/mp4", true) : ""}
   ${embed.videoWidth ? meta("og:video:width", String(embed.videoWidth), true) : ""}
   ${embed.videoHeight ? meta("og:video:height", String(embed.videoHeight), true) : ""}
-  ${meta("twitter:card", video ? "player" : "summary_large_image")}
+  ${embed.publishedAt ? meta("article:published_time", embed.publishedAt, true) : ""}
+  ${meta("twitter:card", twitterCard)}
   ${meta("twitter:title", title)}
   ${meta("twitter:description", description)}
   ${meta("twitter:image", image)}
+  ${image ? meta("twitter:image:src", image) : ""}
   ${video ? meta("twitter:player", video) : ""}
   ${meta("theme-color", "#ff0000")}
   ${pollNote}
@@ -124,7 +141,7 @@ export function renderLandingPage(): string {
 <body>
   <main>
     <h1>Fix<span>YouTube</span></h1>
-    <p>Better YouTube link previews for Discord, Telegram, Slack, and other apps - inspired by <a href="https://github.com/FxEmbed/FxEmbed">FxEmbed</a>.</p>
+    <p>Better YouTube link previews for Discord, iMessage, Telegram, Slack, and other apps - inspired by <a href="https://github.com/FxEmbed/FxEmbed">FxEmbed</a>.</p>
     <h2>How to use</h2>
     <p>Replace <code>youtube.com</code> with <code>fixyoutube.com</code> in any link:</p>
     <pre>https://www.youtube.com/watch?v=dQw4w9WgXcQ
