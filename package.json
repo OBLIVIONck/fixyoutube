@@ -4,11 +4,8 @@
   "description": "Rich YouTube embeds for Discord, Telegram, and more - videos, Shorts, community posts, and polls",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "dev:node": "tsx src/node.ts",
+    "dev": "tsx src/node.ts",
     "start": "tsx src/node.ts",
-    "deploy": "wrangler deploy",
-    "deploy:cf": "bash scripts/deploy-cloudflare.sh",
     "check": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -16,8 +13,7 @@
     "youtube",
     "embed",
     "discord",
-    "oembed",
-    "cloudflare-workers"
+    "oembed"
   ],
   "author": "OBLIVIONck",
   "license": "MIT",
@@ -27,10 +23,8 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260228.0",
     "@types/node": "^25.3.3",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
-    "wrangler": "^4.69.0"
+    "vitest": "^4.0.18"
   }
 }

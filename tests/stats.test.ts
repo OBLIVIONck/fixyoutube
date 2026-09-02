@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStatsLine, formatPublishedLabel, formatViewLabel } from "../src/format/stats";
-import { parseVideoEngagementFromNext, parseVideoTitleFromNext } from "../src/providers/engagement";
+import { parseChannelFromNext, parseVideoDescriptionFromNext, parseVideoEngagementFromNext, parseVideoTitleFromNext } from "../src/providers/engagement";
 
 describe("formatViewLabel", () => {
   it("formats raw counts", () => {
@@ -53,6 +53,32 @@ describe("parseVideoEngagementFromNext", () => {
     expect(parsed.likes).toBe("19,367,636");
     expect(parsed.publishedAt).toBe("Oct 24, 2009");
     expect(parsed.viewCount).toBe("1,810,717,469");
+  });
+});
+
+describe("parseVideoDescriptionFromNext", () => {
+  it("extracts attributed description body", () => {
+    const text = parseVideoDescriptionFromNext({
+      attributedDescriptionBodyText: {
+        content: "Line one\nLine two",
+      },
+    });
+    expect(text).toBe("Line one\nLine two");
+  });
+});
+
+describe("parseChannelFromNext", () => {
+  it("extracts channel from videoSecondaryInfoRenderer", () => {
+    const channel = parseChannelFromNext({
+      videoSecondaryInfoRenderer: {
+        owner: {
+          videoOwnerRenderer: {
+            title: { runs: [{ text: "Rick Astley" }] },
+          },
+        },
+      },
+    });
+    expect(channel).toBe("Rick Astley");
   });
 });
 

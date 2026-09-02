@@ -87,6 +87,73 @@ export function parseVideoEngagementFromNext(data: unknown): VideoEngagement {
   return out;
 }
 
+export function parseVideoDescriptionFromNext(data: unknown): string | undefined {
+  let found: string | undefined;
+
+  function walk(node: unknown) {
+    if (found || !node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+
+    const obj = node as Record<string, unknown>;
+    const body = obj.attributedDescriptionBodyText as Record<string, unknown> | undefined;
+    if (body) {
+      const content = body.content;
+      if (typeof content === "string" && content.trim()) {
+        found = content.trim();
+        return;
+      }
+      const runs = textFromRuns(body.runs);
+      if (runs.trim()) {
+        found = runs.trim();
+        return;
+      }
+    }
+
+    for (const value of Object.values(obj)) walk(value);
+  }
+
+  walk(data);
+  return found;
+}
+
+export function parseChannelFromNext(data: unknown): string | undefined {
+  let found: string | undefined;
+
+  function walk(node: unknown) {
+    if (found || !node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+
+    const obj = node as Record<string, unknown>;
+    const secondary = obj.videoSecondaryInfoRenderer as Record<string, unknown> | undefined;
+    if (secondary?.owner) {
+      const owner = secondary.owner as Record<string, unknown>;
+      const videoOwner = owner.videoOwnerRenderer as Record<string, unknown> | undefined;
+      const title = simpleText(videoOwner?.title);
+      if (title) {
+        found = title;
+        return;
+      }
+    }
+
+    const details = obj.videoDetails as { author?: string } | undefined;
+    if (details?.author?.trim()) {
+      found = details.author.trim();
+      return;
+    }
+
+    for (const value of Object.values(obj)) walk(value);
+  }
+
+  walk(data);
+  return found;
+}
+
 export function parseVideoTitleFromNext(data: unknown): string | undefined {
   let found: string | undefined;
 

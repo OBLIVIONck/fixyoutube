@@ -1,5 +1,5 @@
 import type { YouTubeEmbed } from "../types";
-import { buildEmbedDescription, buildPreviewBlurb, buildStatsLine } from "../format/stats";
+import { buildDiscordDescription, buildEmbedDescription, buildPreviewBlurb, buildSocialDescription, buildStatsLine } from "../format/stats";
 import { normalizePreviewImage } from "../providers/innertube";
 
 function escapeHtml(value: string): string {
@@ -10,10 +10,18 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Meta tag content must stay on one line; literal newlines break og:description parsing. */
+function escapeMetaContent(value: string): string {
+  return escapeHtml(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n/g, "&#10;");
+}
+
 function meta(name: string, content?: string, property = false): string {
   if (!content) return "";
   const attr = property ? "property" : "name";
-  return `<meta ${attr}="${escapeHtml(name)}" content="${escapeHtml(content)}">`;
+  return `<meta ${attr}="${escapeHtml(name)}" content="${escapeMetaContent(content)}">`;
 }
 
 function formatDuration(seconds?: number): string | undefined {
@@ -40,16 +48,33 @@ function previewImage(embed: YouTubeEmbed): string | undefined {
   return normalizePreviewImage(absoluteHttpsUrl(raw), videoId);
 }
 
+function authorMeta(author?: string, authorUrl?: string): string {
+  if (!author?.trim()) return "";
+  const name = author.trim();
+  const tags = [
+    meta("author", name),
+    meta("article:author", name, true),
+    meta("og:article:author", name, true),
+  ];
+  if (authorUrl?.trim()) {
+    tags.push(meta("article:author", authorUrl.trim(), true));
+  }
+  return tags.join("\n    ");
+}
+
 export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string {
   const title = embed.title || "YouTube";
-  const description = buildEmbedDescription(embed, 500);
-  const previewText = buildPreviewBlurb(embed);
+  const bodyDescription = buildEmbedDescription(embed, 500);
+  const discordDescription = buildDiscordDescription(embed, 350);
+  const socialDescription = buildSocialDescription(embed, 350);
+  const previewText = buildPreviewBlurb(embed, 200);
   const statsLine = buildStatsLine(embed);
   const image = previewImage(embed);
-  const video = embed.videoUrl ? absoluteHttpsUrl(embed.videoUrl) : undefined;
   const canonical = embed.canonicalUrl;
   const fixUrl = canonical.replace("https://www.youtube.com", siteOrigin);
-  const siteName = embed.author || "YouTube";
+  const channelName = embed.author?.trim();
+  const siteName = channelName || "FixYouTube";
+  const embedDescription = discordDescription || socialDescription || previewText || bodyDescription.replace(/\n+/g, " · ");
 
   const extraImages = (embed.images || [])
     .slice(1, 4)
@@ -70,31 +95,25 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
   <meta charset="utf-8">
   <title>${escapeHtml(title)}</title>
   <link rel="canonical" href="${escapeHtml(canonical)}">
-  ${meta("description", previewText || description)}
+  ${meta("description", embedDescription)}
+  ${authorMeta(channelName, embed.authorUrl)}
   ${meta("og:site_name", siteName, true)}
   ${meta("og:title", title, true)}
-  ${meta("og:description", previewText || description, true)}
+  ${meta("og:description", embedDescription, true)}
   ${meta("og:url", fixUrl, true)}
-  ${meta("og:type", video ? "video.other" : "article", true)}
+  ${meta("og:type", "website", true)}
   ${meta("og:image", image, true)}
   ${image ? meta("og:image:secure_url", image, true) : ""}
   ${image ? meta("og:image:type", "image/jpeg", true) : ""}
   ${image ? meta("og:image:width", "1280", true) : ""}
   ${image ? meta("og:image:height", "720", true) : ""}
   ${extraImages}
-  ${video ? meta("og:video", video, true) : ""}
-  ${video ? meta("og:video:url", video, true) : ""}
-  ${video ? meta("og:video:secure_url", video, true) : ""}
-  ${video ? meta("og:video:type", "video/mp4", true) : ""}
-  ${embed.videoWidth ? meta("og:video:width", String(embed.videoWidth), true) : ""}
-  ${embed.videoHeight ? meta("og:video:height", String(embed.videoHeight), true) : ""}
   ${embed.publishedAt ? meta("article:published_time", embed.publishedAt, true) : ""}
   ${meta("twitter:card", twitterCard)}
   ${meta("twitter:title", title)}
-  ${meta("twitter:description", previewText || description)}
+  ${meta("twitter:description", embedDescription)}
   ${meta("twitter:image", image)}
   ${image ? meta("twitter:image:src", image) : ""}
-  ${video ? meta("twitter:player", video) : ""}
   ${meta("theme-color", "#ff0000")}
   ${pollNote}
   <style>
@@ -112,9 +131,8 @@ export function renderEmbedPage(embed: YouTubeEmbed, siteOrigin: string): string
     <h1>${escapeHtml(title)}</h1>
     ${embed.author ? `<p class="meta">by ${escapeHtml(embed.author)}</p>` : ""}
     ${statsLine ? `<p class="meta">${escapeHtml(statsLine)}</p>` : ""}
-    ${video ? `<video src="${escapeHtml(video)}" controls poster="${escapeHtml(image || "")}"></video>` : ""}
-    ${!video && image ? `<img src="${escapeHtml(image)}" alt="">` : ""}
-    <p>${escapeHtml(embed.description?.slice(0, 500) || "")}</p>
+    ${!image ? "" : `<img src="${escapeHtml(image)}" alt="">`}
+    <p>${escapeHtml(bodyDescription.replace(/\n/g, " · "))}</p>
     ${
       embed.poll?.choices.length
         ? `<div class="poll"><strong>Poll</strong><ul>${embed.poll.choices

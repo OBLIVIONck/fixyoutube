@@ -60,7 +60,8 @@ app.get("/*", async (c) => {
       return c.json(embedToOEmbed(embed, youtubeUrl));
     }
     return c.html(renderEmbedPage(embed, siteOrigin(c)), 200, {
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": "public, max-age=60, stale-while-revalidate=120",
+      "Vary": "User-Agent",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Embed failed";

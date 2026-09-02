@@ -33,7 +33,7 @@ curl "https://fixyoutube.com/oembed?url=https://www.youtube.com/watch?v=dQw4w9Wg
 
 ## Self-hosting
 
-FixYouTube runs on [Cloudflare Workers](https://workers.cloudflare.com/).
+FixYouTube is a Node.js app built with [Hono](https://hono.dev).
 
 ```bash
 git clone https://github.com/OBLIVIONck/fixyoutube.git
@@ -42,18 +42,24 @@ npm install
 npm run dev
 ```
 
-Deploy:
+Production:
 
 ```bash
-# Create a Cloudflare API token with Workers Scripts Edit permission
-export CLOUDFLARE_API_TOKEN=your_token
-export CLOUDFLARE_ACCOUNT_ID=your_account_id
-npm run deploy
+npm start
 ```
 
-Point your domain at Cloudflare and add worker routes in `wrangler.toml` (see the commented examples).
+Or with Docker:
 
-GitHub Actions deploys on push when `CLOUDFLARE_API_TOKEN` is set as a repository secret.
+```bash
+docker compose up -d --build
+```
+
+Optional environment variables:
+
+- `PORT` - listen port (default `8787`)
+- `INNERTUBE_CLIENT_VERSION` - InnerTube client version string
+
+Point your domain at the server (reverse proxy to `PORT`) to use your own hostname.
 
 ## Contributing
 
@@ -66,7 +72,7 @@ npm run check
 
 ## How it works
 
-- [Hono](https://hono.dev) router on Cloudflare Workers
+- [Hono](https://hono.dev) HTTP router on Node.js
 - Bot user-agents get Open Graph / Twitter Card HTML
 - [InnerTube](https://wiki.archiveteam.org/index.php/YouTube) for video metadata
 - Page parsing for community posts, images, and polls

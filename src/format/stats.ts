@@ -74,14 +74,87 @@ export function buildStatsLine(embed: YouTubeEmbed): string | undefined {
   return parts.length ? parts.join(" · ") : undefined;
 }
 
-export function buildEmbedDescription(embed: YouTubeEmbed, maxBody = 500): string {
-  const stats = buildStatsLine(embed);
-  const body = (embed.description || "").trim();
-  const clippedBody = body.length > maxBody ? `${body.slice(0, maxBody - 1)}…` : body;
+/** First few non-empty lines of the video/post description for link previews. */
+export function excerptDescription(text: string, maxLines = 4, maxChars = 320): string {
+  const cleaned = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!cleaned) return "";
 
-  if (stats && clippedBody) return `${stats}\n\n${clippedBody}`;
-  if (stats) return stats;
-  return clippedBody;
+  const lines = cleaned.split("\n").map((line) => line.trim()).filter(Boolean);
+  const taken: string[] = [];
+  let used = 0;
+
+  for (const line of lines) {
+    if (taken.length >= maxLines) break;
+    const slice = line.length > 140 ? `${line.slice(0, 139)}…` : line;
+    if (used + slice.length + 1 > maxChars && taken.length > 0) break;
+    taken.push(slice);
+    used += slice.length + 1;
+  }
+
+  return taken.join("\n");
+}
+
+export function buildEmbedDescription(embed: YouTubeEmbed, maxBody = 500): string {
+  const channel = (embed.author || "").trim();
+  const stats = buildStatsLine(embed);
+  const excerpt = excerptDescription(embed.description || "", 4, Math.max(120, maxBody - 120));
+
+  const headerParts: string[] = [];
+  if (channel) headerParts.push(channel);
+  if (stats) headerParts.push(stats);
+
+  const header = headerParts.join("\n");
+  if (header && excerpt) {
+    const combined = `${header}\n\n${excerpt}`;
+    if (combined.length <= maxBody) return combined;
+    const room = maxBody - header.length - 3;
+    if (room > 40) return `${header}\n\n${excerpt.slice(0, room)}…`;
+    return header.slice(0, maxBody);
+  }
+  if (header) return header.length > maxBody ? `${header.slice(0, maxBody - 1)}…` : header;
+  if (excerpt) return excerpt.length > maxBody ? `${excerpt.slice(0, maxBody - 1)}…` : excerpt;
+  return "";
+}
+
+/** Single-line embed description: stats and excerpt (channel goes in article:author). */
+export function buildDiscordDescription(embed: YouTubeEmbed, maxLen = 350): string {
+  const parts: string[] = [];
+
+  const stats = buildStatsLine(embed);
+  if (stats) parts.push(stats);
+
+  const excerpt = excerptDescription(embed.description || "", 3, 220)
+    .replace(/\s*\n\s*/g, " · ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (excerpt) parts.push(excerpt);
+
+  const line = parts.filter(Boolean).join(" · ");
+  if (!line) return "";
+  return line.length > maxLen ? `${line.slice(0, maxLen - 1)}…` : line;
+}
+
+/** Single-line OG description: channel, stats, and description excerpt (Discord-safe). */
+export function buildSocialDescription(embed: YouTubeEmbed, maxLen = 350): string {
+  const parts: string[] = [];
+  const channel = (embed.author || "").trim();
+  if (channel) parts.push(channel);
+
+  const stats = buildStatsLine(embed);
+  if (stats) parts.push(stats);
+
+  const excerpt = excerptDescription(embed.description || "", 3, 220)
+    .replace(/\s*\n\s*/g, " · ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (excerpt) parts.push(excerpt);
+
+  const line = parts.filter(Boolean).join(" · ");
+  if (!line) return "";
+  return line.length > maxLen ? `${line.slice(0, maxLen - 1)}…` : line;
 }
 
 /** Short single-line blurb for iMessage / Twitter / Facebook cards. */

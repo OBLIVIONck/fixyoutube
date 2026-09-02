@@ -12,7 +12,9 @@ import {
   pickLargestThumbnail,
 } from "./innertube";
 import {
+  parseChannelFromNext,
   parsePostPublishedTime,
+  parseVideoDescriptionFromNext,
   parseVideoEngagementFromNext,
   parseVideoTitleFromNext,
   type VideoEngagement,
@@ -255,11 +257,22 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
       html = undefined;
     }
     const title = await resolveVideoTitle(canonicalUrl, videoId, { html });
+    let author: string | undefined;
+    let authorUrl: string | undefined;
+    try {
+      const oembed = await fetchViaOEmbed(canonicalUrl);
+      author = oembed.author?.trim();
+      authorUrl = oembed.authorUrl;
+    } catch {
+      // oEmbed unavailable
+    }
     return {
       kind: parsed.kind === "short" ? "short" : "video",
       canonicalUrl,
       title,
       description: decodeHtmlEntities(extractMeta(html || "", "og:description") || ""),
+      author,
+      authorUrl,
       thumbnail: html ? extractMeta(html, "og:image") : undefined,
       videoUrl: html ? extractMeta(html, "og:video:url") || extractMeta(html, "og:video") : undefined,
     };
@@ -277,15 +290,27 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
   const publishDate =
     player?.microformat?.playerMicroformatRenderer?.publishDate || engagement.publishedAt;
 
+  let author = details?.author?.trim() || parseChannelFromNext(nextData);
+  let authorUrl = details?.channelId
+    ? `https://www.youtube.com/channel/${details.channelId}`
+    : undefined;
+  if (!author) {
+    try {
+      const oembed = await fetchViaOEmbed(canonicalUrl);
+      if (oembed.author?.trim()) author = oembed.author.trim();
+      if (!authorUrl && oembed.authorUrl) authorUrl = oembed.authorUrl;
+    } catch {
+      // oEmbed unavailable
+    }
+  }
+
   return {
     kind: parsed.kind === "short" ? "short" : "video",
     canonicalUrl,
     title,
-    description: details?.shortDescription || "",
-    author: details?.author,
-    authorUrl: details?.channelId
-      ? `https://www.youtube.com/channel/${details.channelId}`
-      : undefined,
+    description: details?.shortDescription || parseVideoDescriptionFromNext(nextData) || "",
+    author,
+    authorUrl,
     thumbnail: normalizePreviewImage(thumb, videoId) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
     videoUrl: stream?.url,
     videoWidth: stream?.width || 1280,
