@@ -1,100 +1,74 @@
 # FixYouTube
 
-Rich YouTube embeds for Discord, Telegram, Slack, and other platforms - inspired by [FxEmbed](https://github.com/FxEmbed/FxEmbed).
+Better YouTube embeds for Discord, Telegram, Slack, and other platforms - inspired by [FxEmbed](https://github.com/FxEmbed/FxEmbed).
 
-Swap `youtube.com` for `fixyoutube.com` and share the link. Bots get rich previews with video, images, and poll details. Humans are redirected to YouTube.
+Replace `youtube.com` with `fixyoutube.com` in any link. Bots get rich previews with video, stats, images, and polls. Humans are redirected to YouTube.
 
-## Quick start
+**Live site:** [fixyoutube.com](https://fixyoutube.com)
+
+## Usage
 
 ```text
 https://www.youtube.com/watch?v=dQw4w9WgXcQ
 → https://fixyoutube.com/watch?v=dQw4w9WgXcQ
 ```
 
-Also works with:
+Supported links:
 
+- Videos (`/watch?v=...`, `youtu.be/...`)
 - Shorts (`/shorts/...`)
 - Community posts (`/post/...`) including polls
 - Channels (`/@handle`, `/channel/...`)
 - Playlists (`/playlist?list=...`)
-- `youtu.be/...` links (paste into `/oembed` or rewrite host)
 
-## Deploy
+Embeds include view/like/comment counts and publish date when YouTube exposes them.
 
-### Option A: VPS (current)
-
-The service runs as a Docker container behind Caddy on the c00lkiddtech VPS.
+## API
 
 ```bash
-docker compose up -d --build
+curl "https://fixyoutube.com/oembed?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 ```
 
-Point DNS at the VPS:
+## Self-hosting
 
-| Type | Host | Value |
-|------|------|-------|
-| A | `@` | `15.204.116.29` |
-| A | `www` | `15.204.116.29` |
-
-`fixyoutube.com` is currently on Namecheap nameservers (`dns1.registrar-servers.com`). Update the A records in Namecheap, then HTTPS is issued automatically via Caddy on-demand TLS.
-
-### Option B: Cloudflare Workers
-
-Your current `CLOUDFLARE_API_TOKEN` can edit DNS on existing zones but cannot deploy Workers yet. Create a new token with **Workers Scripts Edit** and **Zone** permissions, then:
+FixYouTube runs on [Cloudflare Workers](https://workers.cloudflare.com/).
 
 ```bash
-export CLOUDFLARE_API_TOKEN=...
-export CLOUDFLARE_ACCOUNT_ID=64428e69298176aba96969d47209fbde
-npm run deploy:cf
-```
-
-Add `fixyoutube.com` to Cloudflare (or transfer nameservers from Namecheap), uncomment the `[[routes]]` blocks in `wrangler.toml`, and redeploy.
-
-GitHub Actions deploys automatically when you add repo secrets:
-
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID` (optional, defaults in `wrangler.toml`)
-
-## Development
-
-```bash
+git clone https://github.com/OBLIVIONck/fixyoutube.git
+cd fixyoutube
 npm install
 npm run dev
 ```
 
-Test a video embed like Discord would:
+Deploy:
 
 ```bash
-curl -H "User-Agent: Discordbot/2.0" "http://localhost:8787/watch?v=dQw4w9WgXcQ"
+# Create a Cloudflare API token with Workers Scripts Edit permission
+export CLOUDFLARE_API_TOKEN=your_token
+export CLOUDFLARE_ACCOUNT_ID=your_account_id
+npm run deploy
 ```
 
-oEmbed:
+Point your domain at Cloudflare and add worker routes in `wrangler.toml` (see the commented examples).
+
+GitHub Actions deploys on push when `CLOUDFLARE_API_TOKEN` is set as a repository secret.
+
+## Contributing
+
+Issues and pull requests are welcome. Please open an issue first for large changes.
 
 ```bash
-curl "http://localhost:8787/oembed?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+npm test
+npm run check
 ```
-
-## Deploy (Cloudflare Workers)
-
-1. `npm run deploy`
-2. Point `fixyoutube.com` DNS to Cloudflare
-3. Uncomment the `[[routes]]` blocks in `wrangler.toml` and redeploy
 
 ## How it works
 
-- **Cloudflare Worker** + [Hono](https://hono.dev) routing
-- **Bot detection** - Discordbot, TelegramBot, Slackbot, etc. get embed HTML with Open Graph / Twitter Card meta
-- **InnerTube API** for video metadata and stream URLs
-- **Page parsing** for community posts, images, and polls (`ytInitialData`)
-- **Humans** - 302 redirect to the original YouTube URL
-
-## Roadmap
-
-- [ ] Telegram Instant View style pages
-- [ ] Live stream status badges
-- [ ] Multi-image mosaic (`m.fixyoutube.com`)
-- [ ] Public JSON API (`/api/v1/...`)
-- [ ] Music.youtube.com support
+- [Hono](https://hono.dev) router on Cloudflare Workers
+- Bot user-agents get Open Graph / Twitter Card HTML
+- [InnerTube](https://wiki.archiveteam.org/index.php/YouTube) for video metadata
+- Page parsing for community posts, images, and polls
+- Everyone else gets a redirect to YouTube
 
 ## License
 

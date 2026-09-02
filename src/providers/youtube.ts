@@ -4,12 +4,18 @@ import { toYouTubeUrl } from "../parsers/url";
 import {
   decodeHtmlEntities,
   extractMeta,
+  extractPageTitle,
   extractYtInitialData,
   fetchYouTubePage,
   innertube,
   pickLargestThumbnail,
 } from "./innertube";
-import { parsePostPublishedTime, parseVideoEngagementFromNext, type VideoEngagement } from "./engagement";
+import {
+  parsePostPublishedTime,
+  parseVideoEngagementFromNext,
+  parseVideoTitleFromNext,
+  type VideoEngagement,
+} from "./engagement";
 
 interface PlayerResponse {
   videoDetails?: {
@@ -109,6 +115,64 @@ function parseImagesFromAttachment(attachment: Record<string, unknown> | undefin
   return images;
 }
 
+const GENERIC_TITLES = new Set([
+  "youtube",
+  "youtube video",
+  "youtube -",
+  "watch",
+]);
+
+function isUsableTitle(title?: string): boolean {
+  if (!title?.trim()) return false;
+  const normalized = title.trim().toLowerCase();
+  if (GENERIC_TITLES.has(normalized)) return false;
+  if (normalized === "youtube") return false;
+  return true;
+}
+
+async function resolveVideoTitle(
+  canonicalUrl: string,
+  videoId: string,
+  sources: {
+    player?: PlayerResponse;
+    next?: unknown;
+    html?: string;
+  }
+): Promise<string> {
+  const candidates: (string | undefined)[] = [
+    sources.player?.videoDetails?.title?.trim(),
+    sources.next ? parseVideoTitleFromNext(sources.next) : undefined,
+  ];
+
+  if (sources.html) {
+    candidates.push(extractPageTitle(sources.html));
+    candidates.push(decodeHtmlEntities(extractMeta(sources.html, "og:title") || ""));
+  }
+
+  for (const title of candidates) {
+    if (isUsableTitle(title)) return title!.trim();
+  }
+
+  try {
+    const oembed = await fetchViaOEmbed(canonicalUrl);
+    if (isUsableTitle(oembed.title)) return oembed.title!.trim();
+  } catch {
+    // oEmbed unavailable
+  }
+
+  if (!sources.html) {
+    try {
+      const html = await fetchYouTubePage(`/watch?v=${videoId}`);
+      const pageTitle = extractPageTitle(html);
+      if (isUsableTitle(pageTitle)) return pageTitle!;
+    } catch {
+      // page fetch failed
+    }
+  }
+
+  return `Video ${videoId}`;
+}
+
 function parseCommunityPostFromInitialData(data: unknown, postId: string): Partial<YouTubeEmbed> | null {
   const thread = walkForPostRenderer(data);
   if (!thread) return null;
@@ -170,37 +234,52 @@ async function fetchVideoEmbed(env: Env, parsed: ParsedYouTubeUrl): Promise<YouT
   const videoId = parsed.videoId!;
   const canonicalUrl = toYouTubeUrl(parsed);
 
-  let player: PlayerResponse;
+  let player: PlayerResponse | undefined;
   let engagement: VideoEngagement = {};
+  let nextData: unknown;
+  let html: string | undefined;
+
   try {
     const [playerRes, nextRes] = await Promise.all([
       innertube<PlayerResponse>(env, "player", { videoId }),
       innertube(env, "next", { videoId }),
     ]);
     player = playerRes;
+    nextData = nextRes;
     engagement = parseVideoEngagementFromNext(nextRes);
   } catch {
-    const html = await fetchYouTubePage(parsed.canonicalPath);
+    try {
+      html = await fetchYouTubePage(parsed.canonicalPath);
+    } catch {
+      html = undefined;
+    }
+    const title = await resolveVideoTitle(canonicalUrl, videoId, { html });
     return {
       kind: parsed.kind === "short" ? "short" : "video",
       canonicalUrl,
-      title: decodeHtmlEntities(extractMeta(html, "og:title") || "YouTube Video"),
-      description: decodeHtmlEntities(extractMeta(html, "og:description") || ""),
-      thumbnail: extractMeta(html, "og:image"),
-      videoUrl: extractMeta(html, "og:video:url") || extractMeta(html, "og:video"),
+      title,
+      description: decodeHtmlEntities(extractMeta(html || "", "og:description") || ""),
+      thumbnail: html ? extractMeta(html, "og:image") : undefined,
+      videoUrl: html ? extractMeta(html, "og:video:url") || extractMeta(html, "og:video") : undefined,
     };
   }
 
-  const details = player.videoDetails;
-  const stream = bestProgressiveVideo(player.streamingData);
+  const title = await resolveVideoTitle(canonicalUrl, videoId, {
+    player,
+    next: nextData,
+    html,
+  });
+
+  const details = player?.videoDetails;
+  const stream = bestProgressiveVideo(player?.streamingData);
   const thumb = pickLargestThumbnail(details?.thumbnail?.thumbnails);
   const publishDate =
-    player.microformat?.playerMicroformatRenderer?.publishDate || engagement.publishedAt;
+    player?.microformat?.playerMicroformatRenderer?.publishDate || engagement.publishedAt;
 
   return {
     kind: parsed.kind === "short" ? "short" : "video",
     canonicalUrl,
-    title: details?.title || "YouTube Video",
+    title,
     description: details?.shortDescription || "",
     author: details?.author,
     authorUrl: details?.channelId

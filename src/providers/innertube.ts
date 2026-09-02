@@ -73,13 +73,47 @@ export function extractMeta(html: string, property: string): string | undefined 
 }
 
 export function extractYtInitialData(html: string): unknown | null {
-  const match = html.match(/var ytInitialData = (\{.*?\});<\/script>/s);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[1]);
-  } catch {
-    return null;
+  const marker = "var ytInitialData = ";
+  const start = html.indexOf(marker);
+  if (start < 0) return null;
+
+  const jsonStart = start + marker.length;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = jsonStart; i < html.length; i++) {
+    const ch = html[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(html.slice(jsonStart, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
   }
+  return null;
+}
+
+export function extractPageTitle(html: string): string | undefined {
+  const og = extractMeta(html, "og:title") || extractMeta(html, "twitter:title");
+  if (og?.trim()) return decodeHtmlEntities(og.trim());
+
+  const tag = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
+  if (!tag) return undefined;
+  const cleaned = decodeHtmlEntities(tag.trim()).replace(/\s*-\s*YouTube\s*$/i, "").trim();
+  return cleaned || undefined;
 }
 
 export function decodeHtmlEntities(text: string): string {

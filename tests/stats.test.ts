@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStatsLine, formatPublishedLabel, formatViewLabel } from "../src/format/stats";
-import { parseVideoEngagementFromNext } from "../src/providers/engagement";
+import { parseVideoEngagementFromNext, parseVideoTitleFromNext } from "../src/providers/engagement";
 
 describe("formatViewLabel", () => {
   it("formats raw counts", () => {
@@ -53,5 +53,16 @@ describe("parseVideoEngagementFromNext", () => {
     expect(parsed.likes).toBe("19,367,636");
     expect(parsed.publishedAt).toBe("Oct 24, 2009");
     expect(parsed.viewCount).toBe("1,810,717,469");
+  });
+});
+
+describe("parseVideoTitleFromNext", () => {
+  it("extracts title from videoPrimaryInfoRenderer", () => {
+    const title = parseVideoTitleFromNext({
+      videoPrimaryInfoRenderer: {
+        title: { runs: [{ text: "Me at the zoo" }] },
+      },
+    });
+    expect(title).toBe("Me at the zoo");
   });
 });

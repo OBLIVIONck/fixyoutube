@@ -87,6 +87,39 @@ export function parseVideoEngagementFromNext(data: unknown): VideoEngagement {
   return out;
 }
 
+export function parseVideoTitleFromNext(data: unknown): string | undefined {
+  let found: string | undefined;
+
+  function walk(node: unknown) {
+    if (found || !node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+
+    const obj = node as Record<string, unknown>;
+    const primary = obj.videoPrimaryInfoRenderer as Record<string, unknown> | undefined;
+    if (primary?.title) {
+      const title = simpleText(primary.title);
+      if (title) {
+        found = title;
+        return;
+      }
+    }
+
+    const details = obj.videoDetails as { title?: string } | undefined;
+    if (details?.title?.trim()) {
+      found = details.title.trim();
+      return;
+    }
+
+    for (const value of Object.values(obj)) walk(value);
+  }
+
+  walk(data);
+  return found;
+}
+
 export function parsePostPublishedTime(renderer: Record<string, unknown>): string | undefined {
   return (
     simpleText(renderer.publishedTimeText)
